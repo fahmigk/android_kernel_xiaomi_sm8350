@@ -14,12 +14,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential flex git libssl-dev rsync zip libelf-dev
 
-      - name: Download Reliable AOSP Clang Toolchain
+      - name: Clone LineageOS AOSP Clang Toolchain
         run: |
-          mkdir clang
-          cd clang
-          wget https://github.com/Eva-Gleb/aosp-clang/releases/download/r416183b/clang-r416183b.tar.gz
-          tar -zxf clang-r416183b.tar.gz
+          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b.git clang
 
       - name: Integrate KernelSU Next v3.2.0 (Legacy Non-GKI Method)
         run: |
