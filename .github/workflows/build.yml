@@ -60,9 +60,9 @@ jobs:
           echo "RELEASE_TAG=KingFxhmi-vili-$(date +'%Y%m%d%H%M')" >> $GITHUB_ENV
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-releases@v2
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ env.RELEASE_TAG }}
+          tag: ${{ env.RELEASE_TAG }}
           name: KingFxhmi Kernel for Mi 11T Pro (KSU Next & SUSFS)
           body: |
             ### Official KingFxhmi Build Release
@@ -76,4 +76,5 @@ jobs:
             ### ℹ️ KernelSU Next Version Compatibility Note
             - **Past Versions:** This kernel architecture directly supports legacy KSU Next versions (v3.2.0+ branch layouts).
             - **Upcoming Versions:** Future versions are fully supported! Running this action pipeline fetches the newest `next` branch hooks dynamically from source during compilation.
-          files: release_out/Image
+          artifacts: release_out/Image
+          token: ${{ github.token }}
