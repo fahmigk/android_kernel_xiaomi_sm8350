@@ -9,6 +9,11 @@ jobs:
       - name: Checkout Kernel Source
         uses: actions/checkout@v4
 
+      - name: Set up Build Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential flex git gnupg gperf libssl-dev libxml2-utils rsync zip
+
       - name: Download Proton Clang Toolchain
         run: |
           git clone --depth=1 https://github.com/kdrag0n/proton-clang.git clang
