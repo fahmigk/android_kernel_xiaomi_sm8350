@@ -1,4 +1,4 @@
-name: Build Mi 11T Pro Kernel with KSU Next & SUSFS
+name: Build Mi 11T Pro Kernel with KSU Next, SUSFS & NetHunter
 on:
   workflow_dispatch:
 
@@ -26,18 +26,21 @@ jobs:
 
       - name: Inject SUSFS Patches & Drivers
         run: |
-          # Create necessary directory paths if they don't exist
           mkdir -p fs include/linux
-          
-          # Download official SUSFS source components directly via raw text links
           curl -LSs "https://raw.githubusercontent.com/miz999/susfs4ksu/main/kernel/fs/susfs.c" -o fs/susfs.c
           curl -LSs "https://raw.githubusercontent.com/miz999/susfs4ksu/main/kernel/include/linux/susfs.h" -o include/linux/susfs.h
           curl -LSs "https://raw.githubusercontent.com/miz999/susfs4ksu/main/5.4/KernelSU-Next/0001-susfs-v5.4-KernelSU-Next.patch" -o susfs.patch
-          
-          # Apply the file system patch directly to the tree
           patch -p1 < susfs.patch || true
 
-      - name: Build Kernel Image
+      - name: Inject RTL88XXAU External Wi-Fi Drivers
+        run: |
+          # Clone the Linux 5.4 compatible Realtek out-of-tree driver code
+          git clone --depth=1 https://github.com/aircrack-ng/rtl8812au.git drivers/net/wireless/rtl8812au
+          
+          # Append the new driver module to the wireless architecture Makefile
+          echo "obj-\$(CONFIG_RTL8812AU) += rtl8812au/" >> drivers/net/wireless/Makefile
+
+      - name: Build Kernel Image with NetHunter Drivers
         run: |
           export PATH="${{ github.workspace }}/clang/bin:$PATH"
           export ARCH=arm64
@@ -48,13 +51,29 @@ jobs:
           export KBUILD_BUILD_USER=KingFxhmi
           export LOCALVERSION=-KingFxhmi-Edition
           
-          # Configure the defconfig file
+          # Configure the initial defconfig file
           make O=out vili_defconfig CC=clang LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
           
-          # Explicitly enable SUSFS configuration flags inside the build tree
+          # 1. Enable Core Kernel Hiding Protocols (SUSFS)
           echo "CONFIG_SUSFS=y" >> out/.config
           echo "CONFIG_SUSFS_SUS_PATH=y" >> out/.config
           echo "CONFIG_SUSFS_TRY_UMOUNT=y" >> out/.config
+          
+          # 2. Enable Mac80211 Wireless Stack & Packet Injection Frameworks
+          echo "CONFIG_WIRELESS=y" >> out/.config
+          echo "CONFIG_CFG80211=y" >> out/.config
+          echo "CONFIG_MAC80211=y" >> out/.config
+          echo "CONFIG_NL80211_TESTMODE=y" >> out/.config
+          echo "CONFIG_PACKET=y" >> out/.config
+          
+          # 3. Enable USB OTG Networking & Generic Host Drivers
+          echo "CONFIG_USB_USBNET=y" >> out/.config
+          echo "CONFIG_USB_NET_DRIVERS=y" >> out/.config
+          
+          # 4. Activate Atheros AR9271 & Realtek Driver Modules
+          echo "CONFIG_ATH_COMMON=y" >> out/.config
+          echo "CONFIG_ATH9K_HTC=y" >> out/.config
+          echo "CONFIG_RTL8812AU=y" >> out/.config
           
           # Compile the final kernel tree
           make -j$(nproc --all) O=out CC=clang LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
@@ -63,24 +82,23 @@ jobs:
         run: |
           mkdir -p release_out
           cp out/arch/arm64/boot/Image release_out/Image
-          echo "RELEASE_TAG=KingFxhmi-vili-$(date +'%Y%m%d%H%M')" >> $GITHUB_ENV
+          echo "RELEASE_TAG=KingFxhmi-vili-NetHunter-$(date +'%Y%m%d%H%M')" >> $GITHUB_ENV
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ env.RELEASE_TAG }}
-          name: KingFxhmi Kernel for Mi 11T Pro (KSU Next & SUSFS)
+          name: KingFxhmi NetHunter Kernel for Mi 11T Pro (KSU Next & SUSFS)
           body: |
-            ### Official KingFxhmi Build Release
+            ### Official KingFxhmi NetHunter Build Release
             - **Signature Branding:** `Linux 5.4.x-KingFxhmi-Edition`
             - **Device:** Xiaomi Mi 11T Pro (vili)
-            - **Kernel Architecture version:** Linux 5.4 (Snapdragon 888)
-            - **Android OS Support:** Android 11, 12, 13, and 14 (HyperOS / Custom ROMs)
             - **Compiler Tag:** KingFxhmi@KingFxhmi-Lab
-            - **Features:** KernelSU Next + SUSFS Hiding Engine Integrated
             
-            ### ℹ️ KernelSU Next Version Compatibility Note
-            - **Past Versions:** This kernel architecture directly supports legacy KSU Next versions (v3.2.0+ branch layouts).
-            - **Upcoming Versions:** Future versions are fully supported! Running this action pipeline fetches the newest `next` branch hooks dynamically from source during compilation.
+            ### 🔥 Features Included:
+            - **KernelSU Next + SUSFS Hiding Engine** Fully Integrated
+            - **Kali NetHunter Wireless Stack** Enabled
+            - **Packet Injection & Monitor Mode Support** Protocol Patched
+            - **Built-in Drivers:** Atheros AR9271 (`ath9k_htc`) & Realtek (`rtl8812au` / `rtl88XXau` series)
           artifacts: release_out/Image
           token: ${{ github.token }}
