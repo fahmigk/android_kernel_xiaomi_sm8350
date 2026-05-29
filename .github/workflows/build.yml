@@ -4,7 +4,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Kernel Source
         uses: actions/checkout@v4
@@ -14,10 +14,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential flex git gnupg gperf libssl-dev libxml2-utils rsync zip libelf-dev ccache lz4 liblz4-tool
 
-      - name: Setup Android Clang Toolchain
-        uses: zycualx/setup-clang@main
-        with:
-          clang-version: r416183b
+      - name: Download Verified AOSP Clang Toolchain
+        run: |
+          mkdir clang
+          cd clang
+          wget https://github.com/mzying2001/aosp-clang/releases/download/r416183b/clang-r416183b.tar.gz
+          tar -zxf clang-r416183b.tar.gz
 
       - name: Integrate KernelSU Next v3.2.0 (Legacy Non-GKI Method)
         run: |
@@ -25,6 +27,7 @@ jobs:
 
       - name: Build Kernel Image
         run: |
+          export PATH="${{ github.workspace }}/clang/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
