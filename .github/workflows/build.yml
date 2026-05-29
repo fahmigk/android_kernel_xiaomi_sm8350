@@ -15,7 +15,7 @@ jobs:
           sudo apt-get install -y bc bison build-essential flex git gnupg gperf libssl-dev libxml2-utils rsync zip libelf-dev ccache lz4 liblz4-tool
 
       - name: Setup Android Clang Toolchain
-        uses: zycual/setup-clang@main
+        uses: zycualx/setup-clang@main
         with:
           clang-version: r416183b
 
