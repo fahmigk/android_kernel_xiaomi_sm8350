@@ -30,11 +30,11 @@ jobs:
           export KBUILD_BUILD_HOST=GitHub-Actions
           export KBUILD_BUILD_USER=vili
           
-          # Run defconfig configuration
-          make O=out vili_defconfig CC=clang LD=ld.lld CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+          # Run defconfig configuration using LLVM mapping flags
+          make O=out vili_defconfig CC=clang LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
           
           # Compile kernel tree
-          make -j$(nproc --all) O=out CC=clang LD=ld.lld CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- || make O=out CC=clang LD=ld.lld CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+          make -j$(nproc --all) O=out CC=clang LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
 
       - name: Upload Compiled Flashable Kernel Image
         uses: actions/upload-artifact@v4
