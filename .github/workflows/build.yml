@@ -9,10 +9,9 @@ jobs:
       - name: Checkout Kernel Source
         uses: actions/checkout@v4
 
-      - name: Setup Clang Toolchain
-        uses: KyleKun/arm-gnu-toolchain@main
-        with:
-          toolchain: clang
+      - name: Download Stable Clang Toolchain
+        run: |
+          git clone --depth=1 https://github.com/Panchajanya1999/azure-clang.git clang
 
       - name: Integrate KernelSU Next v3.2.0 (Legacy Non-GKI Method)
         run: |
@@ -20,6 +19,7 @@ jobs:
 
       - name: Build Kernel Image
         run: |
+          export PATH="${{ github.workspace }}/clang/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
