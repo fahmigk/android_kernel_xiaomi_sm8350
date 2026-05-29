@@ -24,13 +24,18 @@ jobs:
         run: |
           curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s legacy
 
-      - name: Clone SUSFS Patches & Drivers
+      - name: Inject SUSFS Patches & Drivers
         run: |
-          # Using a verified, public standalone kernel-side patch mirror
-          git clone --depth=1 https://github.com/coderfanstatus/susfs4ksu_mirror.git susfs_src
-          cp susfs_src/kernel/fs/susfs.c fs/
-          cp susfs_src/kernel/include/linux/susfs.h include/linux/
-          patch -p1 < susfs_src/5.4/KernelSU-Next/0001-susfs-v5.4-KernelSU-Next.patch || true
+          # Create necessary directory paths if they don't exist
+          mkdir -p fs include/linux
+          
+          # Download official SUSFS source components directly via raw text links
+          curl -LSs "https://raw.githubusercontent.com/miz999/susfs4ksu/main/kernel/fs/susfs.c" -o fs/susfs.c
+          curl -LSs "https://raw.githubusercontent.com/miz999/susfs4ksu/main/kernel/include/linux/susfs.h" -o include/linux/susfs.h
+          curl -LSs "https://raw.githubusercontent.com/miz999/susfs4ksu/main/5.4/KernelSU-Next/0001-susfs-v5.4-KernelSU-Next.patch" -o susfs.patch
+          
+          # Apply the file system patch directly to the tree
+          patch -p1 < susfs.patch || true
 
       - name: Build Kernel Image
         run: |
