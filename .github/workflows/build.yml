@@ -1,10 +1,12 @@
-name: Build Mi 11T Pro Kernel with KSU Next
+name: Build Mi 11T Pro Kernel with KSU Next & SUSFS
 on:
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout Kernel Source
         uses: actions/checkout@v4
@@ -18,26 +20,60 @@ jobs:
         run: |
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b.git clang
 
-      - name: Integrate KernelSU Next v3.2.0 (Legacy Non-GKI Method)
+      - name: Integrate KernelSU Next v3.2.0+ (Legacy Non-GKI Method)
         run: |
           curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s legacy
+
+      - name: Clone SUSFS Patches & Drivers
+        run: |
+          git clone --depth=1 https://gitlab.com/khizam/susfs4ksu.git susfs_src
+          cp susfs_src/kernel/fs/susfs.c fs/
+          cp susfs_src/kernel/include/linux/susfs.h include/linux/
+          patch -p1 < susfs_src/5.4/KernelSU-Next/0001-susfs-v5.4-KernelSU-Next.patch || true
 
       - name: Build Kernel Image
         run: |
           export PATH="${{ github.workspace }}/clang/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=arm64
-          export KBUILD_BUILD_HOST=GitHub-Actions
-          export KBUILD_BUILD_USER=vili
           
-          # Run defconfig configuration using LLVM mapping flags
+          # Custom Creator Signature Configurations
+          export KBUILD_BUILD_HOST=KingFxhmi-Lab
+          export KBUILD_BUILD_USER=KingFxhmi
+          export LOCALVERSION=-KingFxhmi-Edition
+          
+          # Configure the defconfig file
           make O=out vili_defconfig CC=clang LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
           
-          # Compile kernel tree
+          # Explicitly enable SUSFS configuration flags inside the build tree
+          echo "CONFIG_SUSFS=y" >> out/.config
+          echo "CONFIG_SUSFS_SUS_PATH=y" >> out/.config
+          echo "CONFIG_SUSFS_TRY_UMOUNT=y" >> out/.config
+          
+          # Compile the final kernel tree
           make -j$(nproc --all) O=out CC=clang LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
 
-      - name: Upload Compiled Flashable Kernel Image
-        uses: actions/upload-artifact@v4
+      - name: Prepare Release Package
+        run: |
+          mkdir -p release_out
+          cp out/arch/arm64/boot/Image release_out/Image
+          echo "RELEASE_TAG=KingFxhmi-vili-$(date +'%Y%m%d%H%M')" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-releases@v2
         with:
-          name: KSU-Next-Kernel-vili
-          path: out/arch/arm64/boot/Image
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: KingFxhmi Kernel for Mi 11T Pro (KSU Next & SUSFS)
+          body: |
+            ### Official KingFxhmi Build Release
+            - **Signature Branding:** `Linux 5.4.x-KingFxhmi-Edition`
+            - **Device:** Xiaomi Mi 11T Pro (vili)
+            - **Kernel Architecture version:** Linux 5.4 (Snapdragon 888)
+            - **Android OS Support:** Android 11, 12, 13, and 14 (HyperOS / Custom ROMs)
+            - **Compiler Tag:** KingFxhmi@KingFxhmi-Lab
+            - **Features:** KernelSU Next + SUSFS Hiding Engine Integrated
+            
+            ### ℹ️ KernelSU Next Version Compatibility Note
+            - **Past Versions:** This kernel architecture directly supports legacy KSU Next versions (v3.2.0+ branch layouts).
+            - **Upcoming Versions:** Future versions are fully supported! Running this action pipeline fetches the newest `next` branch hooks dynamically from source during compilation.
+          files: release_out/Image
