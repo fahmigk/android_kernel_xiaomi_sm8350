@@ -12,11 +12,14 @@ jobs:
       - name: Set up Build Environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison build-essential flex git libssl-dev rsync zip
+          sudo apt-get install -y bc bison build-essential flex git libssl-dev rsync zip libelf-dev
 
-      - name: Download Stable Clang Toolchain
+      - name: Download Reliable AOSP Clang Toolchain
         run: |
-          git clone --depth=1 https://github.com/Panchajanya1999/azure-clang.git clang
+          mkdir clang
+          cd clang
+          wget https://github.com/Eva-Gleb/aosp-clang/releases/download/r416183b/clang-r416183b.tar.gz
+          tar -zxf clang-r416183b.tar.gz
 
       - name: Integrate KernelSU Next v3.2.0 (Legacy Non-GKI Method)
         run: |
@@ -30,8 +33,8 @@ jobs:
           export CROSS_COMPILE=aarch64-linux-gnu-
           export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
           
-          make O=out vili_defconfig CC=clang LLVM=1
-          make -j$(nproc --all) O=out CC=clang LLVM=1
+          make O=out vili_defconfig CC=clang
+          make -j$(nproc --all) O=out CC=clang
 
       - name: Upload Compiled Flashable Kernel Image
         uses: actions/upload-artifact@v4
