@@ -4,7 +4,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout Kernel Source
         uses: actions/checkout@v4
@@ -14,9 +14,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential flex git gnupg gperf libssl-dev libxml2-utils rsync zip libelf-dev ccache lz4 liblz4-tool
 
-      - name: Download Proton Clang Toolchain
+      - name: Download Official AOSP Clang Toolchain
         run: |
-          git clone --depth=1 https://github.com/kdrag0n/proton-clang.git clang
+          mkdir clang
+          cd clang
+          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/android-12.0.5_r1/clang-r416183b.tar.gz
+          tar -zxf clang-r416183b.tar.gz
 
       - name: Integrate KernelSU Next v3.2.0 (Legacy Non-GKI Method)
         run: |
