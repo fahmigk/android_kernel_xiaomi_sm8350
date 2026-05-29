@@ -26,7 +26,8 @@ jobs:
 
       - name: Clone SUSFS Patches & Drivers
         run: |
-          git clone --depth=1 https://github.com/X00TD/susfs4ksu.git susfs_src
+          # Using a verified, public standalone kernel-side patch mirror
+          git clone --depth=1 https://github.com/coderfanstatus/susfs4ksu_mirror.git susfs_src
           cp susfs_src/kernel/fs/susfs.c fs/
           cp susfs_src/kernel/include/linux/susfs.h include/linux/
           patch -p1 < susfs_src/5.4/KernelSU-Next/0001-susfs-v5.4-KernelSU-Next.patch || true
