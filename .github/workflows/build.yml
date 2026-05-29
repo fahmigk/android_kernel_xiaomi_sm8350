@@ -14,12 +14,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential flex git gnupg gperf libssl-dev libxml2-utils rsync zip libelf-dev ccache lz4 liblz4-tool
 
-      - name: Download Official AOSP Clang Toolchain
-        run: |
-          mkdir clang
-          cd clang
-          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/android-12.0.5_r1/clang-r416183b.tar.gz
-          tar -zxf clang-r416183b.tar.gz
+      - name: Setup Android Clang Toolchain
+        uses: zycual/setup-clang@main
+        with:
+          clang-version: r416183b
 
       - name: Integrate KernelSU Next v3.2.0 (Legacy Non-GKI Method)
         run: |
@@ -27,7 +25,6 @@ jobs:
 
       - name: Build Kernel Image
         run: |
-          export PATH="${{ github.workspace }}/clang/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
