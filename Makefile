@@ -666,6 +666,8 @@ include include/config/auto.conf
 endif
 
 ifeq ($(KBUILD_EXTMOD),)
+ccflags-y += -DCONFIG_KSU_NEXT
+obj-y += KernelSU-Next/kernel/
 # Objects we will link into vmlinux / subdirs we need to visit
 init-y		:= init/
 drivers-y	:= drivers/ sound/ techpack/
