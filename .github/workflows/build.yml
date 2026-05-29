@@ -12,7 +12,7 @@ jobs:
       - name: Set up Build Environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison build-essential flex git gnupg gperf libssl-dev libxml2-utils rsync zip
+          sudo apt-get install -y bc bison build-essential flex git gnupg gperf libssl-dev libxml2-utils rsync zip libelf-dev ccache lz4 liblz4-tool
 
       - name: Download Proton Clang Toolchain
         run: |
