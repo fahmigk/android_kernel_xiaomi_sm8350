@@ -9,12 +9,10 @@ jobs:
       - name: Checkout Kernel Source
         uses: actions/checkout@v4
 
-      - name: Download Verified AOSP Clang Toolchain
-        run: |
-          mkdir clang
-          cd clang
-          wget https://github.com/mzying2001/aosp-clang/releases/download/r416183b/clang-r416183b.tar.gz
-          tar -zxf clang-r416183b.tar.gz
+      - name: Setup Clang Toolchain
+        uses: KyleKun/arm-gnu-toolchain@main
+        with:
+          toolchain: clang
 
       - name: Integrate KernelSU Next v3.2.0 (Legacy Non-GKI Method)
         run: |
@@ -22,7 +20,6 @@ jobs:
 
       - name: Build Kernel Image
         run: |
-          export PATH="${{ github.workspace }}/clang/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
