@@ -39,7 +39,7 @@ jobs:
         echo "CONFIG_ATH9K_HTC=y" >> out/.config
         echo "CONFIG_RTL8812AU=y" >> out/.config
         
-        # Compile using the runner's built-in Clang environment matching Run #30's architecture paths
+        # Compile using the runner's built-in Clang environment
         make -j$(nproc --all) O=out ARCH=arm64 CC=clang LD=ld.lld CROSS_COMPILE=aarch64-linux-gnu-
 
     - name: Package AnyKernel3 Flashable ZIP
@@ -56,6 +56,11 @@ jobs:
         # Setup modern dynamic installer parameters inside anykernel.sh
         cd $GITHUB_WORKSPACE/AnyKernel3
         sed -i 's/kernel.string=.*/kernel.string=KingFxhmi NetHunter Kernel/' anykernel.sh
+        
+        # FIX: Explicitly add your device codename so AnyKernel3 doesn't abort!
+        sed -i 's/device.name1=.*/device.name1=vili/' anykernel.sh
+        sed -i 's/device.name2=.*/device.name2=vili_global/' anykernel.sh
+        
         sed -i 's/do.systemless=1/do.systemless=0/' anykernel.sh
         sed -i 's/supported.versions=.*/supported.versions=/' anykernel.sh
         
