@@ -18,12 +18,13 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y bc build-essential libelf-dev libssl-dev flex bison libncurses-dev git perl cpio zip unzip
 
-    - name: Sync Toolchains
+    - name: Sync Stable Toolchains
       run: |
         mkdir -p $GITHUB_WORKSPACE/toolchain
         cd $GITHUB_WORKSPACE/toolchain
-        git clone --depth=1 https://github.com/mvaisakh/gcc-arm64.git gcc64
-        git clone --depth=1 https://github.com/mvaisakh/gcc-arm.git gcc32
+        # Using official stable AOSP toolchain mirrors to prevent clone failures
+        git clone --depth=1 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 gcc64
+        git clone --depth=1 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 gcc32
         git clone --depth=1 https://gitlab.com/ZyCromerZ/Clang/clang-llvm.git -b 14 clang
 
     - name: Compile Kernel Tree
@@ -50,7 +51,7 @@ jobs:
         echo "CONFIG_RTL8812AU=y" >> out/.config
         
         # Compile the final kernel binary and modules
-        make -j$(nproc --all) O=out CC=clang LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+        make -j$(nproc --all) O=out CC=clang LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi-
 
     - name: Package AnyKernel3 Flashable ZIP
       run: |
