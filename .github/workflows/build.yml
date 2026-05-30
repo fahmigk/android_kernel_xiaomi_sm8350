@@ -16,7 +16,7 @@ jobs:
     - name: Install Build Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y bc build-essential libelf-dev libssl-dev flex bison libncurses-dev git perl cpio zip unzip Crossbuild-essential-arm64
+        sudo apt-get install -y bc build-essential libelf-dev libssl-dev flex bison libncurses-dev git perl cpio zip unzip crossbuild-essential-arm64
 
     - name: Sync Clang Toolchain
       run: |
