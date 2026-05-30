@@ -16,21 +16,10 @@ jobs:
     - name: Install Build Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y bc build-essential libelf-dev libssl-dev flex bison libncurses-dev git perl cpio zip unzip crossbuild-essential-arm64
-
-    - name: Sync Stable AOSP Clang
-      run: |
-        mkdir -p $GITHUB_WORKSPACE/toolchain
-        cd $GITHUB_WORKSPACE/toolchain
-        # Using official Android platform prebuilt Clang to guarantee 100% clone success
-        git clone --depth=1 https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang
+        sudo apt-get install -y bc build-essential libelf-dev libssl-dev flex bison libncurses-dev git perl cpio zip unzip crossbuild-essential-arm64 clang lld
 
     - name: Compile Kernel Tree
       run: |
-        # Set path directly to the prebuilt clang binary folder inside the AOSP tree
-        CLANG_BIN=$(find $GITHUB_WORKSPACE/toolchain/clang/ -name "clang" | head -n1 | xargs dirname)
-        export PATH="$CLANG_BIN:$PATH"
-        
         # Configure variables for compilation using vili_defconfig
         make -j$(nproc --all) O=out ARCH=arm64 vili_defconfig
         
@@ -50,8 +39,8 @@ jobs:
         echo "CONFIG_ATH9K_HTC=y" >> out/.config
         echo "CONFIG_RTL8812AU=y" >> out/.config
         
-        # Compile the final kernel binary using Clang and system cross-compilers
-        make -j$(nproc --all) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+        # Compile using the runner's built-in Clang environment matching Run #30's architecture paths
+        make -j$(nproc --all) O=out ARCH=arm64 CC=clang LD=ld.lld CROSS_COMPILE=aarch64-linux-gnu-
 
     - name: Package AnyKernel3 Flashable ZIP
       run: |
