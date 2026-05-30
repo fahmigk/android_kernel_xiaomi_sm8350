@@ -18,16 +18,18 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y bc build-essential libelf-dev libssl-dev flex bison libncurses-dev git perl cpio zip unzip crossbuild-essential-arm64
 
-    - name: Sync Clang Toolchain
+    - name: Sync Stable AOSP Clang
       run: |
         mkdir -p $GITHUB_WORKSPACE/toolchain
         cd $GITHUB_WORKSPACE/toolchain
-        # Using the clean, active stable Clang mirror
-        git clone --depth=1 https://gitlab.com/ZyCromerZ/Clang/clang-llvm.git -b 14 clang
+        # Using official Android platform prebuilt Clang to guarantee 100% clone success
+        git clone --depth=1 https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang
 
     - name: Compile Kernel Tree
       run: |
-        export PATH="$GITHUB_WORKSPACE/toolchain/clang/bin:$PATH"
+        # Set path directly to the prebuilt clang binary folder inside the AOSP tree
+        CLANG_BIN=$(find $GITHUB_WORKSPACE/toolchain/clang/ -name "clang" | head -n1 | xargs dirname)
+        export PATH="$CLANG_BIN:$PATH"
         
         # Configure variables for compilation using vili_defconfig
         make -j$(nproc --all) O=out ARCH=arm64 vili_defconfig
