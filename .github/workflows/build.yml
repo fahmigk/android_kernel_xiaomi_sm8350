@@ -1,104 +1,79 @@
-name: Build Mi 11T Pro Kernel with KSU Next, SUSFS & NetHunter
+name: KingFxhmi NetHunter Kernel Build Pipeline
+
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
-  build:
+  build-kernel:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - name: Checkout Kernel Source
-        uses: actions/checkout@v4
+    - name: Checkout Kernel Source
+      uses: actions/checkout@v4
 
-      - name: Set up Build Environment
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y bc bison build-essential flex git libssl-dev rsync zip libelf-dev
+    - name: Install Build Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bc build-essential libelf-dev libssl-dev flex bison libncurses-dev git libbwrite-perl perl cpio zip unzip
 
-      - name: Clone LineageOS AOSP Clang Toolchain
-        run: |
-          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b.git clang
+    - name: Sync Toolchains
+      run: |
+        mkdir -p $GITHUB_WORKSPACE/toolchain
+        cd $GITHUB_WORKSPACE/toolchain
+        git clone --depth=1 https://github.com/mvaisakh/gcc-arm64.git gcc64
+        git clone --depth=1 https://github.com/mvaisakh/gcc-arm.git gcc32
+        git clone --depth=1 https://gitlab.com/ZyCromerZ/Clang/clang-llvm.git -b 14 clang
 
-      - name: Integrate KernelSU Next v3.2.0+ (Legacy Non-GKI Method)
-        run: |
-          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s legacy
+    - name: Compile Kernel Tree
+      run: |
+        export PATH="$GITHUB_WORKSPACE/toolchain/clang/bin:$GITHUB_WORKSPACE/toolchain/gcc64/bin:$GITHUB_WORKSPACE/toolchain/gcc32/bin:$PATH"
+        
+        # Configure variables for compilation
+        make -j$(nproc --all) O=out ARCH=arm64 vili_defconfig
+        
+        # 1. Inject KernelSU Next & SUSFS Config Flags Hooks
+        echo "CONFIG_KSU=y" >> out/.config
+        echo "CONFIG_KSU_NEXT=y" >> out/.config
+        echo "CONFIG_OVERLAY_FS=y" >> out/.config
+        
+        # 2. Anti-Bootloop Module Isolation Guard Blocks
+        echo "CONFIG_MODULES=y" >> out/.config
+        echo "CONFIG_MODULE_UNLOAD=y" >> out/.config
+        echo "CONFIG_MODVERSIONS=y" >> out/.config
+        echo "CONFIG_RANDOMIZE_BASE=n" >> out/.config
+        
+        # 3. Activate Atheros AR9271 & Realtek Driver Modules
+        echo "CONFIG_ATH_COMMON=y" >> out/.config
+        echo "CONFIG_ATH9K_HTC=y" >> out/.config
+        echo "CONFIG_RTL8812AU=y" >> out/.config
+        
+        # Compile the final kernel binary and modules
+        make -j$(nproc --all) O=out CC=clang LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
 
-      - name: Inject SUSFS Patches & Drivers
-        run: |
-          mkdir -p fs include/linux
-          curl -LSs "https://raw.githubusercontent.com/miz999/susfs4ksu/main/kernel/fs/susfs.c" -o fs/susfs.c
-          curl -LSs "https://raw.githubusercontent.com/miz999/susfs4ksu/main/kernel/include/linux/susfs.h" -o include/linux/susfs.h
-          curl -LSs "https://raw.githubusercontent.com/miz999/susfs4ksu/main/5.4/KernelSU-Next/0001-susfs-v5.4-KernelSU-Next.patch" -o susfs.patch
-          patch -p1 < susfs.patch || true
+    - name: Package AnyKernel3 Flashable ZIP
+      run: |
+        # Download clean official AnyKernel3 base structure
+        git clone https://github.com/osm0sis/AnyKernel3.git $GITHUB_WORKSPACE/AnyKernel3
+        
+        # Copy newly compiled core kernel binary
+        cp out/arch/arm64/boot/Image $GITHUB_WORKSPACE/AnyKernel3/
+        
+        # Automatically scan, isolate, and copy out-of-tree network module drivers
+        find out/ -name "*.ko" -exec cp {} $GITHUB_WORKSPACE/AnyKernel3/modules/ \;
+        
+        # Setup modern dynamic installer parameters inside anykernel.sh
+        cd $GITHUB_WORKSPACE/AnyKernel3
+        sed -i 's/kernel.string=.*/kernel.string=KingFxhmi NetHunter Kernel/' anykernel.sh
+        sed -i 's/do.systemless=1/do.systemless=0/' anykernel.sh
+        sed -i 's/supported.versions=.*/supported.versions=/' anykernel.sh
+        
+        # Compress everything clean into a standalone recovery package
+        zip -r9 ../KingFxhmi-NetHunter-Kernel.zip *
 
-      - name: Inject RTL88XXAU External Wi-Fi Drivers
-        run: |
-          # Clone the Linux 5.4 compatible Realtek out-of-tree driver code
-          git clone --depth=1 https://github.com/aircrack-ng/rtl8812au.git drivers/net/wireless/rtl8812au
-          
-          # Append the new driver module to the wireless architecture Makefile
-          echo "obj-\$(CONFIG_RTL8812AU) += rtl8812au/" >> drivers/net/wireless/Makefile
-
-      - name: Build Kernel Image with NetHunter Drivers
-        run: |
-          export PATH="${{ github.workspace }}/clang/bin:$PATH"
-          export ARCH=arm64
-          export SUBARCH=arm64
-          
-          # Custom Creator Signature Configurations
-          export KBUILD_BUILD_HOST=KingFxhmi-Lab
-          export KBUILD_BUILD_USER=KingFxhmi
-          export LOCALVERSION=-KingFxhmi-Edition
-          
-          # Configure the initial defconfig file
-          make O=out vili_defconfig CC=clang LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
-          
-          # 1. Enable Core Kernel Hiding Protocols (SUSFS)
-          echo "CONFIG_SUSFS=y" >> out/.config
-          echo "CONFIG_SUSFS_SUS_PATH=y" >> out/.config
-          echo "CONFIG_SUSFS_TRY_UMOUNT=y" >> out/.config
-          
-          # 2. Enable Mac80211 Wireless Stack & Packet Injection Frameworks
-          echo "CONFIG_WIRELESS=y" >> out/.config
-          echo "CONFIG_CFG80211=y" >> out/.config
-          echo "CONFIG_MAC80211=y" >> out/.config
-          echo "CONFIG_NL80211_TESTMODE=y" >> out/.config
-          echo "CONFIG_PACKET=y" >> out/.config
-          
-          # 3. Enable USB OTG Networking & Generic Host Drivers
-          echo "CONFIG_USB_USBNET=y" >> out/.config
-          echo "CONFIG_USB_NET_DRIVERS=y" >> out/.config
-          
-          # 4. Activate Atheros AR9271 & Realtek Driver Modules
-          echo "CONFIG_ATH_COMMON=y" >> out/.config
-          echo "CONFIG_ATH9K_HTC=y" >> out/.config
-          echo "CONFIG_RTL8812AU=y" >> out/.config
-          
-          # Compile the final kernel tree
-          make -j$(nproc --all) O=out CC=clang LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
-
-      - name: Prepare Release Package
-        run: |
-          mkdir -p release_out
-          cp out/arch/arm64/boot/Image release_out/Image
-          echo "RELEASE_TAG=KingFxhmi-vili-NetHunter-$(date +'%Y%m%d%H%M')" >> $GITHUB_ENV
-
-      - name: Create GitHub Release
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ env.RELEASE_TAG }}
-          name: KingFxhmi NetHunter Kernel for Mi 11T Pro (KSU Next & SUSFS)
-          body: |
-            ### Official KingFxhmi NetHunter Build Release
-            - **Signature Branding:** `Linux 5.4.x-KingFxhmi-Edition`
-            - **Device:** Xiaomi Mi 11T Pro (vili)
-            - **Compiler Tag:** KingFxhmi@KingFxhmi-Lab
-            
-            ### 🔥 Features Included:
-            - **KernelSU Next + SUSFS Hiding Engine** Fully Integrated
-            - **Kali NetHunter Wireless Stack** Enabled
-            - **Packet Injection & Monitor Mode Support** Protocol Patched
-            - **Built-in Drivers:** Atheros AR9271 (`ath9k_htc`) & Realtek (`rtl8812au` / `rtl88XXau` series)
-          artifacts: release_out/Image
-          token: ${{ github.token }}
+    - name: Upload Flashable Kernel ZIP Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: KingFxhmi-NetHunter-Kernel-vili
+        path: KingFxhmi-NetHunter-Kernel.zip
